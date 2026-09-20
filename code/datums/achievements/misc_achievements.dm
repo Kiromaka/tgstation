@@ -1,12 +1,17 @@
 /datum/award/achievement/misc
 	category = "Misc"
-	icon_state = "basemisc" //for those achievements that still need an actual icon, later.
 
 /datum/award/achievement/misc/meteor_examine
 	name = "Your Life Before Your Eyes"
 	desc = "Take a close look at hurtling space debris"
 	database_id = MEDAL_METEOR
 	icon_state = "meteors"
+
+/datum/award/achievement/misc/meteor_punch
+	name = "Your Life In Your Hands"
+	desc = "Give some space debris a piece of your mind"
+	database_id = MEDAL_METEOR_PUNCH
+	icon_state = "punchmeteors"
 
 /datum/award/achievement/misc/pulse
 	name = "Jackpot"
@@ -54,16 +59,19 @@
 	name = "I Was a Teenage Anarchist"
 	desc = "You were doing a great job sticking it to the system until that vending machine decided to fight back."
 	database_id = MEDAL_VENDORSQUISH
+	icon_state = "vendor_squish"
 
 /datum/award/achievement/misc/swirlie
 	name = "A Bowl-d New World"
 	desc = "There's a lot of grisly ways to kick it on the Spinward Periphery, but drowning to death in a toilet probably wasn't what you had in mind. Probably."
 	database_id = MEDAL_SWIRLIE
+	icon_state = "swirlie"
 
 /datum/award/achievement/misc/selfouch
 	name = "How Do I Switch Hands???"
 	desc = "If you saw someone casually club themselves upside the head with a toolbox anywhere in the galaxy but here, you'd probably be pretty concerned for them."
 	database_id = MEDAL_SELFOUCH
+	icon_state = "self_touch"
 
 /datum/award/achievement/misc/cleanboss
 	name = "One Lean, Mean, Cleaning Machine"
@@ -244,3 +252,10 @@
 	desc = "Nutritionists often recommend a balanced and varied diet. However that clearly isn't the case for some creatures."
 	database_id = MEDAL_SHARKDRAGON
 	icon_state = "dragon_plus_fish"
+
+/datum/award/achievement/misc/desensitized
+	name = "In Flanders Fields"
+	desc = "You have witnessed more death and despair in one shift than most TerraGov marines have seen across an entire tour of duty. \
+		Perhaps one day you'll find peace. But not today."
+	database_id = MEDAL_DESENSITIZED
+	icon_state = "desensitized"

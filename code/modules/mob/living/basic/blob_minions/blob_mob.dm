@@ -1,5 +1,6 @@
 /// Root of shared behaviour for mobs spawned by blobs, is abstract and should not be spawned
 /mob/living/basic/blob_minion
+	abstract_type = /mob/living/basic/blob_minion
 	name = "Blob Error"
 	desc = "A nonfunctional fungal creature created by bad code or celestial mistake. Point and laugh."
 	icon = 'icons/mob/nonhuman-player/blob.dmi'
@@ -19,7 +20,8 @@
 	lighting_cutoff_blue = 30
 	initial_language_holder = /datum/language_holder/empty
 	can_buckle_to = FALSE
-	damage_coeff = list(BRUTE = 1, BURN = 1, TOX = 1, STAMINA = 0, OXY = 1)
+	physiology = list(STAMINA = 0)
+	pull_force = MOVE_FORCE_NONE
 	/// Size of cloud produced from a dying spore
 	var/death_cloud_size = BLOBMOB_CLOUD_NONE
 	var/loot = /obj/item/food/spore_sack

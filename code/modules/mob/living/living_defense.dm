@@ -29,17 +29,45 @@
 	return our_armor
 
 /mob/living/proc/getarmor(def_zone, type)
+	SHOULD_CALL_PARENT(TRUE)
+	var/worn_armor = get_worn_armor_value(def_zone, type)
+	var/inner_armor_percent = min(inner_armor?.get_rating(type) * 0.01, 1)
+	var/not_blocked = (100 - worn_armor) * (1 - inner_armor_percent)
+	return 100 - not_blocked
+
+/mob/living/proc/get_worn_armor_value(obj/item/bodypart/def_zone, damage_type)
 	return 0
 
-//this returns the mob's protection against eye damage (number between -1 and 2) from bright lights
+///This proc adds the ratings of an armor type to our inner armor, which is initialized if previously null.
+/mob/living/proc/add_inner_armor(datum/armor/armor_to_add)
+	if(isnull(inner_armor))
+		inner_armor = new
+	inner_armor = inner_armor.add_other_armor(armor_to_add)
+
+///This proc removes the ratings of an armor type from our inner armor, then deletes it if all ratings are 0.
+/mob/living/proc/remove_inner_armor(datum/armor/armor_to_remove)
+	if(isnull(inner_armor))
+		return
+	inner_armor = inner_armor.subtract_other_armor(armor_to_remove)
+	var/list/ratings_list = inner_armor.get_rating_list()
+	for(var/rating in ratings_list)
+		if(ratings_list[rating] != 0)
+			return
+	QDEL_NULL(inner_armor) //all ratings are 0, meaning we no longer have an intrinsic armor of some kind.
+
+/// This returns the mob's protection against eye damage (number between -1 and 2) from bright lights
 /mob/living/proc/get_eye_protection()
 	return 0
 
-///A easy to use proc to apply both organ damage and temporary deafness at once, so you don't have to get the ears everytime.
+/// This returns a number is subtracted from the severity of incoming emps against this mob.
+/mob/living/proc/get_emp_protection()
+	return emp_protection
+
+/// An easy to use proc to apply both organ damage and temporary deafness at once, so you don't have to get the ears everytime.
 /mob/living/proc/sound_damage(damage, deafen)
 	return
 
-//this returns the mob's protection against ear damage (0:no protection; 1: some ear protection; 2: has no ears)
+/// This returns the mob's protection against ear damage (0:no protection; 1: some ear protection; 2: has no ears)
 /mob/living/proc/get_ear_protection(ignore_deafness = FALSE)
 	if(!ignore_deafness && HAS_TRAIT(src, TRAIT_DEAF))
 		return INFINITY //For all my homies that can not hear in the world
@@ -100,6 +128,20 @@
 /mob/living/proc/is_ears_covered()
 	return null
 
+/**
+ * Check if the passed body zone is covered by some clothes
+ *
+ * * location: body zone to check
+ * ([BODY_ZONE_CHEST], [BODY_ZONE_HEAD], etc)
+ * * exluded_equipment_slots: equipment slots to ignore when checking coverage
+ * (for example, if you want to ignore helmets, pass [ITEM_SLOT_HEAD])
+ *
+ * Returns TRUE if the location is accessible (not covered)
+ * Returns FALSE if the location is covered by something
+ */
+/mob/living/proc/is_location_accessible(location, exluded_equipment_slots = NONE)
+	return TRUE
+
 /mob/living/bullet_act(obj/projectile/proj, def_zone, piercing_hit = FALSE, blocked = 0)
 	. = ..()
 	if (. != BULLET_ACT_HIT)
@@ -128,7 +170,7 @@
 		apply_projectile_effects(proj, def_zone, blocked)
 
 /mob/living/proc/apply_projectile_effects(obj/projectile/proj, def_zone, armor_check)
-	apply_damage(
+	var/damage_dealt = apply_damage(
 		damage = proj.damage,
 		damagetype = proj.damage_type,
 		def_zone = def_zone,
@@ -139,6 +181,10 @@
 		attack_direction = get_dir(proj.starting, src),
 		attacking_item = proj,
 	)
+
+	if(proj.damage_type == BRUTE && damage_dealt >= 10 && proj.speed >= 1 && prob(0.1))
+		var/obj/item/organ/brain/a_brain = locate() in get_bodypart(def_zone)
+		a_brain?.cure_trauma_type(resilience = TRAUMA_RESILIENCE_LOBOTOMY)
 
 	apply_effects(
 		stun = proj.stun,
@@ -160,6 +206,10 @@
 
 	if (proj.damage && armor_check < 100)
 		create_projectile_hit_effects(proj, def_zone, armor_check)
+
+	if(proj.fired_from)
+		SEND_SIGNAL(proj.fired_from, COMSIG_PROJECTILE_POST_HIT_LIVING, src, def_zone, armor_check)
+	SEND_SIGNAL(proj, COMSIG_PROJECTILE_SELF_POST_HIT_LIVING, src, def_zone, armor_check)
 
 /mob/living/proc/create_projectile_hit_effects(obj/projectile/proj, def_zone, blocked)
 	if (proj.damage_type != BRUTE)
@@ -193,9 +243,9 @@
 		return clamp(w_class * 8, 20, 100) // Multiply the item's weight class by 8, then clamp the value between 20 and 100
 	return 0 // plays no sound
 
-/mob/living/proc/set_combat_mode(new_mode, silent = TRUE)
+/mob/living/proc/set_combat_mode(new_mode, silent = TRUE, force = FALSE)
 
-	if(HAS_TRAIT(src, TRAIT_COMBAT_MODE_LOCK))
+	if(HAS_TRAIT(src, TRAIT_COMBAT_MODE_LOCK) && !force)
 		return
 
 	if(combat_mode == new_mode)
@@ -203,8 +253,7 @@
 	. = combat_mode
 	combat_mode = new_mode
 	SEND_SIGNAL(src, COMSIG_COMBAT_MODE_TOGGLED)
-	if(hud_used?.action_intent)
-		hud_used.action_intent.update_appearance()
+	hud_used?.screen_objects[HUD_MOB_INTENTS]?.update_appearance()
 	if(silent || !client?.prefs.read_preference(/datum/preference/toggle/sound_combatmode))
 		return
 	if(combat_mode)
@@ -309,13 +358,13 @@
  */
 /mob/living/proc/grab(mob/living/target)
 	if(!istype(target))
-		return FALSE
+		return GRAB_SKIP
 	if(SEND_SIGNAL(src, COMSIG_LIVING_GRAB, target) & (COMPONENT_CANCEL_ATTACK_CHAIN|COMPONENT_SKIP_ATTACK))
-		return FALSE
+		return GRAB_FAILURE
 	if(target.check_block(src, 0, "[src]'s grab", UNARMED_ATTACK))
-		return FALSE
+		return GRAB_FAILURE
 	target.grabbedby(src)
-	return TRUE
+	return GRAB_SUCCESS
 
 /**
  * Called when this mob is grabbed by another mob.
@@ -459,13 +508,8 @@
 	if(.)
 		return TRUE
 
-	for(var/datum/surgery/operations as anything in surgeries)
-		if(user.combat_mode)
-			break
-		if(IS_IN_INVALID_SURGICAL_POSITION(src, operations))
-			continue
-		if(operations.next_step(user, modifiers))
-			return TRUE
+	if(!user.combat_mode && HAS_TRAIT(src, TRAIT_READY_TO_OPERATE) && user.perform_surgery(src))
+		return TRUE
 
 	return FALSE
 
@@ -573,20 +617,21 @@
 /mob/living/proc/electrocute_act(shock_damage, source, siemens_coeff = 1, flags = NONE)
 	if(SEND_SIGNAL(src, COMSIG_LIVING_ELECTROCUTE_ACT, shock_damage, source, siemens_coeff, flags) & COMPONENT_LIVING_BLOCK_SHOCK)
 		return FALSE
+	siemens_coeff *= GET_PHYSIOLOGY(src, PHYS_COEFF_ELEC_CONDUCTIVITY)
 	shock_damage *= siemens_coeff
 	if((flags & SHOCK_TESLA) && HAS_TRAIT(src, TRAIT_TESLA_SHOCKIMMUNE))
 		return FALSE
-	if(HAS_TRAIT(src, TRAIT_SHOCKIMMUNE))
+	if(!(flags & SHOCK_IGNORE_IMMUNITY) && HAS_TRAIT(src, TRAIT_SHOCKIMMUNE))
 		return FALSE
 	if(shock_damage < 1)
 		return FALSE
 	if(!(flags & SHOCK_ILLUSION))
-		adjustFireLoss(shock_damage)
-		if(getFireLoss() > 100)
+		adjust_fire_loss(shock_damage)
+		if(get_fire_loss() > 100)
 			add_shared_particles(/particles/smoke/burning)
 			addtimer(CALLBACK(src, TYPE_PROC_REF(/atom/movable, remove_shared_particles), /particles/smoke/burning), 10 SECONDS)
 	else
-		adjustStaminaLoss(shock_damage)
+		adjust_stamina_loss(shock_damage)
 	if(!(flags & SHOCK_SUPPRESS_MESSAGE))
 		visible_message(
 			span_danger("[src] was shocked by \the [source]!"), \
@@ -599,6 +644,7 @@
 	. = ..()
 	if(. & EMP_PROTECT_CONTENTS)
 		return
+	severity += get_emp_protection()
 	for(var/obj/inside in contents)
 		inside.emp_act(severity)
 
@@ -659,7 +705,7 @@
 	return TRUE
 
 //called when the mob receives a loud bang
-/mob/living/proc/soundbang_act(intensity = SOUNDBANG_NORMAL, stun_pwr = 20, damage_pwr = 5, deafen_pwr = 15, ignore_deafness = FALSE, send_sound = TRUE)
+/mob/living/proc/soundbang_act(intensity = SOUNDBANG_NORMAL, stun_pwr = 2 SECONDS, damage_pwr = 5, deafen_pwr = 1.5 SECONDS, ignore_deafness = FALSE, send_sound = TRUE)
 	var/protection = get_ear_protection(ignore_deafness)
 	if(protection >= intensity)
 		return FALSE
@@ -791,7 +837,7 @@
 			if(obj_content.flags_1 & ON_BORDER_1 && obj_content.dir == shove_dir && obj_content.density)
 				shove_flags |= SHOVE_DIRECTIONAL_BLOCKED
 				break
-		if(target_turf != target_shove_turf && !(shove_flags && SHOVE_DIRECTIONAL_BLOCKED)) //Make sure that we don't run the exact same check twice on the same tile
+		if(target_turf != target_shove_turf && !(shove_flags & SHOVE_DIRECTIONAL_BLOCKED)) //Make sure that we don't run the exact same check twice on the same tile
 			for(var/obj/obj_content in target_shove_turf)
 				if(obj_content.flags_1 & ON_BORDER_1 && obj_content.dir == REVERSE_DIR(shove_dir) && obj_content.density)
 					shove_flags |= SHOVE_DIRECTIONAL_BLOCKED
@@ -802,22 +848,25 @@
 		if(!(shove_flags & SHOVE_DIRECTIONAL_BLOCKED) && (SEND_SIGNAL(target_shove_turf, COMSIG_LIVING_DISARM_COLLIDE, src, target, shove_flags, weapon) & COMSIG_LIVING_SHOVE_HANDLED))
 			return
 		if((shove_flags & SHOVE_BLOCKED) && !(shove_flags & (SHOVE_KNOCKDOWN_BLOCKED|SHOVE_CAN_KICK_SIDE)))
-			target.Knockdown(SHOVE_KNOCKDOWN_SOLID, daze_amount = 3 SECONDS)
-			target.visible_message(span_danger("[name] shoves [target.name], knocking [target.p_them()] down!"),
-				span_userdanger("You're knocked down from a shove by [name]!"), span_hear("You hear aggressive shuffling followed by a loud thud!"), COMBAT_MESSAGE_RANGE, src)
-			to_chat(src, span_danger("You shove [target.name], knocking [target.p_them()] down!"))
-			log_combat(src, target, "shoved", "knocking them down[weapon ? " with [weapon]" : ""]")
+			var/knocked_down = target.Knockdown(SHOVE_KNOCKDOWN_SOLID, daze_amount = 3 SECONDS)
+			target.visible_message(span_danger("[name] shoves [target.name][knocked_down ? ", knocking [target.p_them()] down" : ""]!"),
+				span_userdanger("You[knocked_down ? "'re knocked down" : " resist falling down"] from a shove by [name]!"), span_hear("You hear aggressive shuffling [knocked_down ? "followed by a loud thud!" : ""]"), COMBAT_MESSAGE_RANGE, src)
+			to_chat(src, span_danger("You shove [target.name][knocked_down ? ", knocking [target.p_them()] down" : ""]!"))
+			log_combat(src, target, "shoved", "[knocked_down ? "knocking them down[weapon ? " with [weapon]" : ""]" : ""]")
+			if(ishuman(target))
+				var/mob/living/carbon/human/human_target = target
+				human_target.force_say()
 			return
 
 	if(shove_flags & SHOVE_CAN_KICK_SIDE) //KICK HIM IN THE NUTS
-		target.Paralyze(SHOVE_CHAIN_PARALYZE)
-		target.apply_status_effect(/datum/status_effect/no_side_kick)
-		target.visible_message(span_danger("[name] kicks [target.name] onto [target.p_their()] side!"),
-						span_userdanger("You're kicked onto your side by [name]!"), span_hear("You hear aggressive shuffling followed by a loud thud!"), COMBAT_MESSAGE_RANGE, src)
-		to_chat(src, span_danger("You kick [target.name] onto [target.p_their()] side!"))
-		addtimer(CALLBACK(target, TYPE_PROC_REF(/mob/living, SetKnockdown), 0), SHOVE_CHAIN_PARALYZE)
-		log_combat(src, target, "kicks", "onto their side (paralyzing)")
-		return
+		if(target.Paralyze(SHOVE_CHAIN_PARALYZE))
+			target.apply_status_effect(/datum/status_effect/no_side_kick)
+			target.visible_message(span_danger("[name] kicks [target.name] onto [target.p_their()] side!"),
+							span_userdanger("You're kicked onto your side by [name]!"), span_hear("You hear aggressive shuffling followed by a loud thud!"), COMBAT_MESSAGE_RANGE, src)
+			to_chat(src, span_danger("You kick [target.name] onto [target.p_their()] side!"))
+			addtimer(CALLBACK(target, TYPE_PROC_REF(/mob/living, SetKnockdown), 0), SHOVE_CHAIN_PARALYZE)
+			log_combat(src, target, "kicks", "onto their side (paralyzing)")
+			return
 
 	target.get_shoving_message(src, weapon, shove_flags)
 
@@ -868,9 +917,10 @@
 		return FALSE
 	if(has_status_effect(/datum/status_effect/hallucination) || has_status_effect(/datum/status_effect/drugginess))
 		return TRUE
-	if(IsSleeping() || IsUnconscious())
+	if(IS_UNCONSCIOUS(src))
 		return TRUE
 	if(HAS_TRAIT(src, TRAIT_DUMB))
 		return TRUE
-	if(mob_mood && mob_mood.sanity < SANITY_UNSTABLE)
+	if(mob_mood?.sanity < SANITY_UNSTABLE)
 		return TRUE
+	return FALSE

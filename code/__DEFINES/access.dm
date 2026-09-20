@@ -28,6 +28,8 @@
 #define ACCESS_ALL_PERSONAL_LOCKERS "all_personal_lockers"
 /// Access used for Access-Changing Programs, this one will unlock all options that can be ever given via that program.
 #define ACCESS_CHANGE_IDS "change_ids"
+/// Access the PDA shopping app checks for to see if you can only request or place orders immediately
+#define ACCESS_BUDGET "department_budget"
 /// Access used for the Captain's personal quarters in mapping, as well as what allows one to order emergency shuttles.
 #define ACCESS_CAPTAIN "captain"
 /// Access used for the Head of Personnel's personal quarters in mapping, as well as the security console and other HoP-related things.
@@ -197,6 +199,8 @@
 #define ACCESS_BLOODCULT "bloodcult"
 /// HUNTERS
 #define ACCESS_HUNTER "hunter"
+/// HERETIC
+#define ACCESS_HERETIC "heretic"
 
 /// - - - MISC - - -
 	// These don't really fit anywhere else
@@ -296,6 +300,7 @@
 	ACCESS_BIT_DEN, \
 	ACCESS_BRIG, \
 	ACCESS_BRIG_ENTRANCE, \
+	ACCESS_BUDGET, \
 	ACCESS_CARGO, \
 	ACCESS_CHAPEL_OFFICE, \
 	ACCESS_CONSTRUCTION, \
@@ -339,6 +344,7 @@
 	ACCESS_SERVICE, \
 	ACCESS_SHIPPING, \
 	ACCESS_SURGERY, \
+	ACCESS_TECH_STORAGE, \
 	ACCESS_THEATRE, \
 	ACCESS_VIROLOGY, \
 	ACCESS_WEAPONS, \
@@ -350,6 +356,7 @@
 	ACCESS_AI_UPLOAD, \
 	ACCESS_ALL_PERSONAL_LOCKERS, \
 	ACCESS_ARMORY, \
+	ACCESS_BUDGET, \
 	ACCESS_CHANGE_IDS, \
 	ACCESS_COMMAND, \
 	ACCESS_EVA, \
@@ -357,7 +364,6 @@
 	ACCESS_MINISAT, \
 	ACCESS_RC_ANNOUNCE, \
 	ACCESS_TCOMMS, \
-	ACCESS_TECH_STORAGE, \
 	ACCESS_TELEPORTER, \
 	ACCESS_VAULT, \
 )
@@ -430,6 +436,7 @@
 /// Used to seed the accesses_by_region list in SSid_access. A list of general service accesses that are overseen by the HoP.
 #define REGION_ACCESS_GENERAL list( \
 	ACCESS_BAR, \
+	ACCESS_BUDGET, \
 	ACCESS_CHAPEL_OFFICE, \
 	ACCESS_CREMATORIUM, \
 	ACCESS_HYDROPONICS, \
@@ -447,6 +454,7 @@
 	ACCESS_ARMORY, \
 	ACCESS_BRIG, \
 	ACCESS_BRIG_ENTRANCE, \
+	ACCESS_BUDGET, \
 	ACCESS_COURT, \
 	ACCESS_DETECTIVE, \
 	ACCESS_HOS, \
@@ -458,6 +466,7 @@
 #define REGION_MEDBAY "Medbay"
 /// Used to seed the accesses_by_region list in SSid_access. A list of all medbay regional accesses that are overseen by the CMO.
 #define REGION_ACCESS_MEDBAY list( \
+	ACCESS_BUDGET, \
 	ACCESS_CMO, \
 	ACCESS_MECH_MEDICAL, \
 	ACCESS_MEDICAL, \
@@ -475,6 +484,7 @@
 /// Used to seed the accesses_by_region list in SSid_access. A list of all research regional accesses that are overseen by the RD.
 #define REGION_ACCESS_RESEARCH list( \
 	ACCESS_AI_UPLOAD, \
+	ACCESS_BUDGET, \
 	ACCESS_GENETICS, \
 	ACCESS_MECH_SCIENCE, \
 	ACCESS_MINISAT, \
@@ -493,6 +503,7 @@
 #define REGION_ACCESS_ENGINEERING list( \
 	ACCESS_ATMOSPHERICS, \
 	ACCESS_AUX_BASE, \
+	ACCESS_BUDGET, \
 	ACCESS_CE, \
 	ACCESS_CONSTRUCTION, \
 	ACCESS_ENGINEERING, \
@@ -509,6 +520,7 @@
 /// Used to seed the accesses_by_region list in SSid_access. A list of all cargo regional accesses that are overseen by the HoP.
 #define REGION_ACCESS_SUPPLY list( \
 	ACCESS_BIT_DEN, \
+	ACCESS_BUDGET, \
 	ACCESS_CARGO, \
 	ACCESS_MECH_MINING, \
 	ACCESS_MINERAL_STOREROOM, \
@@ -524,6 +536,7 @@
 #define REGION_ACCESS_COMMAND list( \
 	ACCESS_AI_UPLOAD, \
 	ACCESS_ALL_PERSONAL_LOCKERS, \
+	ACCESS_BUDGET, \
 	ACCESS_CAPTAIN, \
 	ACCESS_CHANGE_IDS, \
 	ACCESS_COMMAND, \
@@ -539,46 +552,6 @@
 #define REGION_CENTCOM "Central Command"
 /// Used to seed the accesses_by_region list in SSid_access. A list of all CENTCOM_ACCESS regional accesses.
 #define REGION_ACCESS_CENTCOM CENTCOM_ACCESS
-
-/**
- * A list of PDA paths that can be painted as well as the regional heads which should be able to paint them.
- * If a PDA is not in this list, it cannot be painted using the PDA & ID Painter.
- * If a PDA is in this list, it can always be painted with ACCESS_CHANGE_IDS.
- * Used to see pda_region in [/datum/controller/subsystem/id_access/proc/setup_tgui_lists]
- */
-#define PDA_PAINTING_REGIONS list( \
-	/obj/item/modular_computer/pda = list(REGION_GENERAL), \
-	/obj/item/modular_computer/pda/clown = list(REGION_GENERAL), \
-	/obj/item/modular_computer/pda/mime = list(REGION_GENERAL), \
-	/obj/item/modular_computer/pda/medical = list(REGION_MEDBAY), \
-	/obj/item/modular_computer/pda/coroner = list(REGION_MEDBAY), \
-	/obj/item/modular_computer/pda/engineering = list(REGION_ENGINEERING), \
-	/obj/item/modular_computer/pda/security = list(REGION_SECURITY), \
-	/obj/item/modular_computer/pda/detective = list(REGION_SECURITY), \
-	/obj/item/modular_computer/pda/warden = list(REGION_SECURITY), \
-	/obj/item/modular_computer/pda/janitor = list(REGION_GENERAL), \
-	/obj/item/modular_computer/pda/science = list(REGION_RESEARCH), \
-	/obj/item/modular_computer/pda/heads/quartermaster = list(REGION_COMMAND), \
-	/obj/item/modular_computer/pda/heads/hop = list(REGION_COMMAND), \
-	/obj/item/modular_computer/pda/heads/hos = list(REGION_COMMAND), \
-	/obj/item/modular_computer/pda/heads/cmo = list(REGION_COMMAND), \
-	/obj/item/modular_computer/pda/heads/ce = list(REGION_COMMAND), \
-	/obj/item/modular_computer/pda/heads/rd = list(REGION_COMMAND), \
-	/obj/item/modular_computer/pda/heads/captain = list(REGION_COMMAND), \
-	/obj/item/modular_computer/pda/cargo = list(REGION_SUPPLY), \
-	/obj/item/modular_computer/pda/bitrunner = list(REGION_SUPPLY), \
-	/obj/item/modular_computer/pda/shaftminer = list(REGION_SUPPLY), \
-	/obj/item/modular_computer/pda/chaplain = list(REGION_GENERAL), \
-	/obj/item/modular_computer/pda/lawyer = list(REGION_GENERAL), \
-	/obj/item/modular_computer/pda/botanist = list(REGION_GENERAL), \
-	/obj/item/modular_computer/pda/roboticist = list(REGION_RESEARCH), \
-	/obj/item/modular_computer/pda/curator = list(REGION_GENERAL), \
-	/obj/item/modular_computer/pda/cook = list(REGION_GENERAL), \
-	/obj/item/modular_computer/pda/bar = list(REGION_GENERAL), \
-	/obj/item/modular_computer/pda/atmos = list(REGION_ENGINEERING), \
-	/obj/item/modular_computer/pda/chemist = list(REGION_MEDBAY), \
-	/obj/item/modular_computer/pda/geneticist = list(REGION_RESEARCH), \
-)
 
 /// All regions that make up the station area. Helper define to quickly designate a region as part of the station or not. Access via SSid_access.station_regions.
 #define REGION_AREA_STATION list( \

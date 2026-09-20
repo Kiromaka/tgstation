@@ -1,13 +1,12 @@
 /datum/quirk/item_quirk/asthma
 	name = "Asthma"
-	desc = "You suffer from asthma, a inflammatory disorder that causes your airpipe to squeeze shut! Be careful around smoke!"
+	desc = "You suffer from asthma, an inflammatory disorder that causes your airpipe to squeeze shut! Be careful around smoke!"
 	icon = FA_ICON_LUNGS_VIRUS
 	value = -4 // trivialized by NOBREATH but still quite dangerous
 	gain_text = span_danger("You have a harder time breathing.")
 	lose_text = span_notice("You suddenly feel like your lungs just got a lot better at breathing!")
 	medical_record_text = "Patient suffers from asthma."
 	hardcore_value = 2
-	quirk_flags = QUIRK_HUMAN_ONLY
 	mail_goodies = list(/obj/item/reagent_containers/inhaler_canister/albuterol)
 
 	/// At this percentage of inflammation, our lung pressure mult reaches 0. From 0-1.
@@ -81,13 +80,10 @@
 	current_attack?.cure()
 	UnregisterSignal(quirk_holder, COMSIG_CARBON_EXPOSED_TO_SMOKE, COMSIG_CARBON_LOSE_ORGAN, COMSIG_ATOM_EXPOSE_REAGENTS, COMSIG_LIVING_POST_FULLY_HEAL, COMSIG_LIVING_LIFE)
 
-/datum/quirk/item_quirk/asthma/proc/on_life(mob/living/source, seconds_per_tick, times_fired)
+/datum/quirk/item_quirk/asthma/proc/on_life(mob/living/source, seconds_per_tick)
 	SIGNAL_HANDLER
 
-	if (quirk_holder.stat == DEAD)
-		return
-
-	if (HAS_TRAIT(quirk_holder, TRAIT_STASIS) || HAS_TRAIT(quirk_holder, TRAIT_NO_TRANSFORM))
+	if (quirk_holder.stat == DEAD || HAS_TRAIT(quirk_holder, TRAIT_STASIS))
 		return
 
 	var/obj/item/organ/lungs/holder_lungs = quirk_holder.get_organ_slot(ORGAN_SLOT_LUNGS)
